@@ -6,6 +6,9 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fstream>
+#include <sys/socket.h>
+#include <algorithm>
 
 #define MAX_IP_ADDR_LEN 15
 #define MAX_QUERY_LEN 1024
@@ -21,9 +24,9 @@ std::vector<int> available_ports = {8080, 8081}, client_available_ports = {8082,
 
 struct peer_t
 {
-    int peer_id;
-    char peer_ipaddr[MAX_IP_ADDR_LEN];
-    char name[MAX_NAME_LEN];
+    int peer_id;       // Unused
+    char peer_ipaddr[MAX_IP_ADDR_LEN];       // Unused
+    char peer_name[MAX_NAME_LEN];       // Unused
     char* contacts[MAX_CONTACTS];
     char* contacts_ipaddr[MAX_CONTACTS];
     int contacts_port[MAX_CONTACTS];

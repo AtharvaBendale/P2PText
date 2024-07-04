@@ -1,11 +1,3 @@
-#include <iostream>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <cstring>
 #include "config.hpp"
 
 pthread_mutex_t lock;
@@ -68,8 +60,7 @@ void* receiving_thread(void* port){
 void* sending_thread(void* port){
     std::cout << "Peer sending thread initiated!" << std::endl;
     std::cout.flush();
-    char buffer[MAX_QUERY_LEN], input_buffer[MAX_QUERY_LEN], peer_name[MAX_NAME_LEN], ip_addr[MAX_IP_ADDR_LEN], receiver_name[MAX_NAME_LEN];
-    char port_string[MAX_PORT_LENGTH];
+    char buffer[MAX_QUERY_LEN], input_buffer[MAX_QUERY_LEN], peer_name[MAX_NAME_LEN], ip_addr[MAX_IP_ADDR_LEN], receiver_name[MAX_NAME_LEN], port_string[MAX_PORT_LENGTH];
     bzero(buffer, sizeof(buffer));
     bzero(peer_name, sizeof(peer_name));
     bzero(receiver_name, sizeof(receiver_name));
@@ -77,6 +68,11 @@ void* sending_thread(void* port){
     std::cout.flush();
     if(std::cin.peek()=='\n') std::cin.ignore();
     std::cin.getline(peer_name, sizeof(peer_name));
+
+    // Making the file name in which records will be stored
+    std::string peer_storage_file_name = "./peer_storage/peer_";
+    peer_storage_file_name += peer_name;
+    peer_storage_file_name += ".txt";
 
     // Setting connection with tracker
     int tracker_fd, receiver_fd;
@@ -100,17 +96,36 @@ void* sending_thread(void* port){
         exit(EXIT_FAILURE);
     }
 
-    // Registering new User
-    buffer[0] = 'R';
-    strncpy(buffer+SCHAR, peer_name, MAX_NAME_LEN);
-    get_current_ip(ip_addr);
-    strncpy(buffer+SCHAR*(1+MAX_NAME_LEN), ip_addr, MAX_IP_ADDR_LEN);
-    send(tracker_fd, (void*) buffer, sizeof(buffer), 0);
-    std::cout.flush();
-    read(tracker_fd, buffer, sizeof(buffer));
-    *(int*) port = atoi(buffer);
-    std::cout << "Registration successfull" << std::endl;
-    std::cout.flush();
+    std::ifstream posssible_peer_storage_file(peer_storage_file_name);
+
+    if(posssible_peer_storage_file.good())
+    {
+        // Retrieving old contact records
+        posssible_peer_storage_file.getline(port_string, MAX_PORT_LENGTH);
+        *(int*) port = std::atoi(port_string);
+        std::cout << "Welcome back! Continuing on port : " << *(int*) port << '\n';
+        for(int contact_t = 0; !posssible_peer_storage_file.eof() && contact_t < MAX_CONTACTS; contact_t++)
+        {
+            peer.contacts[contact_t] = (char*) malloc(SCHAR * MAX_NAME_LEN);
+            peer.contacts_ipaddr[contact_t] = (char*) malloc(SCHAR * MAX_IP_ADDR_LEN);
+            posssible_peer_storage_file.getline(peer.contacts[contact_t], MAX_NAME_LEN);
+            posssible_peer_storage_file.getline(peer.contacts_ipaddr[contact_t], MAX_IP_ADDR_LEN);
+            posssible_peer_storage_file.getline(port_string, MAX_PORT_LENGTH);
+            peer.contacts_port[contact_t] = std::atoi(port_string);
+        }
+    } else {
+        // Registering new User
+        buffer[0] = 'R';
+        strncpy(buffer+SCHAR, peer_name, MAX_NAME_LEN);
+        get_current_ip(ip_addr);
+        strncpy(buffer+SCHAR*(1+MAX_NAME_LEN), ip_addr, MAX_IP_ADDR_LEN);
+        send(tracker_fd, (void*) buffer, sizeof(buffer), 0);
+        std::cout.flush();
+        read(tracker_fd, buffer, sizeof(buffer));
+        *(int*) port = atoi(buffer);
+        std::cout << "Registration successfull, choosen port : " << *(int*) port << std::endl;
+        std::cout.flush();
+    }
     pthread_mutex_unlock(&lock);
     
     // Prepping sending sockaddr object
@@ -119,7 +134,7 @@ void* sending_thread(void* port){
 
     close(tracker_fd);
     close(receiver_fd);
-
+    sleep(0);       // To make sure receiving thread is initiated
     for(;;)
     {
         std::cout << "> ";
@@ -132,9 +147,26 @@ void* sending_thread(void* port){
         //          '> Add Atharva'
         // Send/send : Prompts user to enter a message which is then sento provided user
         //          '> Send Riddhesh'
-        //          '> This is the message'
+        //          '> Please enter your message : This is the message'
+        // Exit/exit : Logs off the user from the session
+        //          '> exit'
 
         std::cin.getline(input_buffer, sizeof(input_buffer));
+        if(input_buffer[0] == 'E' || input_buffer[0] == 'e'){
+            // Expected command 'Exit'/'exit'
+            std::ofstream peer_storage_file;
+            peer_storage_file.open(peer_storage_file_name);
+            peer_storage_file << *(int*) port;
+            for(int contact_t = 0; contact_t < MAX_CONTACTS; contact_t++){
+                if(peer.contacts[contact_t]){
+                    peer_storage_file << '\n' << peer.contacts[contact_t] << '\n' << peer.contacts_ipaddr[contact_t] << '\n' << peer.contacts_port[contact_t];
+                    peer_storage_file.flush();
+                    free(peer.contacts[contact_t]);
+                    free(peer.contacts_ipaddr[contact_t]);
+                }
+            }
+            exit(EXIT_SUCCESS);
+        }
         if ((tracker_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
             perror("Socket creation error : tracker_fd");
             exit(EXIT_FAILURE);
@@ -150,7 +182,7 @@ void* sending_thread(void* port){
         pthread_mutex_lock(&lock);
         if( input_buffer[0] == 'A' || input_buffer[0] == 'a' )
         {
-            // Expected command 'Add'
+            // Expected command 'Add'/'add'
             std::cout << "Adding contact..." << std::endl;
             int free_index = 0;
             for(free_index = 0; free_index < MAX_CONTACTS; free_index++){
@@ -169,11 +201,11 @@ void* sending_thread(void* port){
             strncpy(peer.contacts_ipaddr[free_index], buffer, MAX_IP_ADDR_LEN);
             strncpy(port_string, buffer+SCHAR*MAX_IP_ADDR_LEN, MAX_PORT_LENGTH);
             peer.contacts_port[free_index] = std::atoi(port_string);
-            std::cout << "Successfully added " << peer.contacts[0] << std::endl;
+            std::cout << "Successfully added " << peer.contacts[free_index] << std::endl;
         }
         else if( input_buffer[0] == 'S' || input_buffer[0] == 's' )
         {
-            // Expected command 'Send'
+            // Expected command 'Send'/'send'
             strncpy(receiver_name, input_buffer + 5*SCHAR, MAX_NAME_LEN);
             int receiver_index = 0;
             for(receiver_index=0; receiver_index < MAX_CONTACTS; receiver_index++){
@@ -213,9 +245,7 @@ int main() {
         peer.contacts[i] = NULL;
     }
 
-    int cur_port = client_available_ports.back();
-    client_available_ports.pop_back();
-    std::cout << "Choosen port : " << cur_port << std::endl;
+    int cur_port;
 
     pthread_t sender, receiver;
 
