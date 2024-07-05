@@ -6,7 +6,6 @@ peer_t peer;
 void* receiving_thread(void* port){
     pthread_mutex_lock(&lock);
     std::cout << "Peer receiving thread initiated!" << std::endl;
-    std::cout.flush();
     pthread_mutex_unlock(&lock);
     char buffer[MAX_QUERY_LEN];
     bzero(buffer, sizeof(buffer));
@@ -59,7 +58,6 @@ void* receiving_thread(void* port){
 
 void* sending_thread(void* port){
     std::cout << "Peer sending thread initiated!" << std::endl;
-    std::cout.flush();
     char buffer[MAX_QUERY_LEN], input_buffer[MAX_QUERY_LEN], peer_name[MAX_NAME_LEN], ip_addr[MAX_IP_ADDR_LEN], receiver_name[MAX_NAME_LEN], port_string[MAX_PORT_LENGTH];
     bzero(buffer, sizeof(buffer));
     bzero(peer_name, sizeof(peer_name));
@@ -120,11 +118,9 @@ void* sending_thread(void* port){
         get_current_ip(ip_addr);
         strncpy(buffer+SCHAR*(1+MAX_NAME_LEN), ip_addr, MAX_IP_ADDR_LEN);
         send(tracker_fd, (void*) buffer, sizeof(buffer), 0);
-        std::cout.flush();
         read(tracker_fd, buffer, sizeof(buffer));
         *(int*) port = atoi(buffer);
         std::cout << "Registration successfull, choosen port : " << *(int*) port << std::endl;
-        std::cout.flush();
     }
     pthread_mutex_unlock(&lock);
     

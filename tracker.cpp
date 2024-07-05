@@ -70,7 +70,7 @@ void* start_tracker(void* port){
             sprintf(tracker.peers_ipaddr[free_directory_entry]+SCHAR*MAX_IP_ADDR_LEN, "%d", client_available_ports.back());
             client_available_ports.pop_back();
             send(new_socket, tracker.peers_ipaddr[free_directory_entry]+SCHAR*MAX_IP_ADDR_LEN, sizeof(tracker.peers_ipaddr[free_directory_entry]+SCHAR*MAX_IP_ADDR_LEN), MSG_CONFIRM);
-            std::cout << "User " << tracker.directory[free_directory_entry] << " succesfully registered in P2PText\n";
+            std::cout << "User " << tracker.directory[free_directory_entry] << " succesfully registered in P2PText" << std::endl;
         }
         else if(buffer[0] == 'G'){
             strncpy(client_name, buffer+SCHAR, MAX_NAME_LEN);
