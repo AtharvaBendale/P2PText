@@ -5,4 +5,4 @@ all:
 clean:
 	rm tracker peer
 format:
-	rm ./peer_storage/*
+	rm -r peer_storage
